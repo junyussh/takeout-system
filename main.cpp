@@ -2,90 +2,111 @@
 #include <form.h>
 #include <cstring>
 #include <string>
+#include <list>
+#include "shoplist.h"
 using namespace std;
+ShopList *shops = new ShopList();
 void Register(WINDOW *);
 void MainMenu(WINDOW *);
 void CreateShop(WINDOW *);
-enum Forms {
-    SHOP, USER
-};
-static char* trim_whitespaces(char *str)
+enum Forms
 {
-	char *end;
+    SHOP,
+    USER
+};
+static char *trim_whitespaces(char *str)
+{
+    char *end;
 
-	// trim leading space
-	while(isspace(*str))
-		str++;
+    // trim leading space
+    while (isspace(*str))
+        str++;
 
-	if(*str == 0) // all spaces?
-		return str;
+    if (*str == 0) // all spaces?
+        return str;
 
-	// trim trailing space
-	end = str + strnlen(str, 128) - 1;
+    // trim trailing space
+    end = str + strnlen(str, 128) - 1;
 
-	while(end > str && isspace(*end))
-		end--;
+    while (end > str && isspace(*end))
+        end--;
 
-	// write new null terminator
-	*(end+1) = '\0';
+    // write new null terminator
+    *(end + 1) = '\0';
 
-	return str;
+    return str;
+}
+void dispatcher(Forms formType, list<string> values)
+{
+    switch (formType)
+    {
+    case SHOP:
+        shops->setData(&values);
+        shops->newShop();
+        break;
+
+    default:
+        break;
+    }
 }
 void driver(Forms formType, FORM *&form, FIELD **fields, int ch)
 {
+    list<string> values;
     switch (ch)
     {
     case KEY_F(2):
-			// Or the current field buffer won't be sync with what is displayed
-			form_driver(form, REQ_NEXT_FIELD);
-			form_driver(form, REQ_PREV_FIELD);
-			move(LINES-3, 2);
+        // Or the current field buffer won't be sync with what is displayed
+        form_driver(form, REQ_NEXT_FIELD);
+        form_driver(form, REQ_PREV_FIELD);
+        move(LINES - 3, 2);
+        for (int i = 0; fields[i]; i++)
+        {
+            values.push_front(trim_whitespaces(field_buffer(fields[i], 0)));
+            // printw("%s", trim_whitespaces(field_buffer(fields[i], 0)));
 
-			for (int i = 0; fields[i]; i++) {
-				printw("%s", trim_whitespaces(field_buffer(fields[i], 0)));
+            // if (field_opts(fields[i]) & O_ACTIVE)
+            // 	printw("\"\t");
+            // else
+            // 	printw(": \"");
+        }
+        dispatcher(formType, values);
+        mvprintw(0, 0, "saved");
+        refresh();
+        pos_form_cursor(form);
+        break;
 
-				if (field_opts(fields[i]) & O_ACTIVE)
-					printw("\"\t");
-				else
-					printw(": \"");
-			}
+    case KEY_DOWN:
+        form_driver(form, REQ_NEXT_FIELD);
+        form_driver(form, REQ_END_LINE);
+        break;
 
-			refresh();
-			pos_form_cursor(form);
-			break;
+    case KEY_UP:
+        form_driver(form, REQ_PREV_FIELD);
+        form_driver(form, REQ_END_LINE);
+        break;
 
-		case KEY_DOWN:
-			form_driver(form, REQ_NEXT_FIELD);
-			form_driver(form, REQ_END_LINE);
-			break;
+    case KEY_LEFT:
+        form_driver(form, REQ_PREV_CHAR);
+        break;
 
-		case KEY_UP:
-			form_driver(form, REQ_PREV_FIELD);
-			form_driver(form, REQ_END_LINE);
-			break;
+    case KEY_RIGHT:
+        form_driver(form, REQ_NEXT_CHAR);
+        break;
 
-		case KEY_LEFT:
-			form_driver(form, REQ_PREV_CHAR);
-			break;
+    // Delete the char before cursor
+    case KEY_BACKSPACE:
+    case 127:
+        form_driver(form, REQ_DEL_PREV);
+        break;
 
-		case KEY_RIGHT:
-			form_driver(form, REQ_NEXT_CHAR);
-			break;
+    // Delete the char under the cursor
+    case KEY_DC:
+        form_driver(form, REQ_DEL_CHAR);
+        break;
 
-		// Delete the char before cursor
-		case KEY_BACKSPACE:
-		case 127:
-			form_driver(form, REQ_DEL_PREV);
-			break;
-
-		// Delete the char under the cursor
-		case KEY_DC:
-			form_driver(form, REQ_DEL_CHAR);
-			break;
-
-		default:
-			form_driver(form, ch);
-			break;
+    default:
+        form_driver(form, ch);
+        break;
     }
 }
 void ShopForm(WINDOW *win)
